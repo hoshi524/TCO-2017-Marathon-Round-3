@@ -21,9 +21,9 @@ testが少ない場合
 毒がどこにあるか辺りをつけるのは不可能で、和が0になるようにフィルターを小さくして、フィルター内に毒が無いことを確認するしかない
 
 bottles = 100
-strips = 1
-rounds = 1
-poison = 2
+strips  = 1
+rounds  = 1
+poison  = 2
 
 だとすると、1 poison / 50 bottlesだけど
 filter = 50にすると
