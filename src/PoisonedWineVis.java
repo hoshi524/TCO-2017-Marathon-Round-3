@@ -70,11 +70,11 @@ public class PoisonedWineVis {
         return ret;
     }
 
-    public double runTest(long seed) {
+    public double runTest(long seed, Solver solver) {
         try {
             generateTestCase(seed);
             PoisonTest.vis = this;
-            int[] ret = new PoisonedWine().testWine(numBottles, testStrips, testRounds, numPoison);
+            int[] ret = solver.testWine(numBottles, testStrips, testRounds, numPoison);
             if (failure) {
                 return 0;
             }
@@ -102,13 +102,38 @@ public class PoisonedWineVis {
         }
     }
 
-    public static void main(String[] args) {
-        long size = 1000;
-        double sum = 0;
-        for (long seed = 1, end = seed + size; seed < end; ++seed) {
-            sum += new PoisonedWineVis().runTest(seed);
+    interface Solver {
+        int[] testWine(int numBottles, int testStrips, int testRounds, int numPoison);
+    }
+
+    class Current implements Solver {
+        public int[] testWine(int numBottles, int testStrips, int testRounds, int numPoison) {
+            return new PoisonedWine().testWine(numBottles, testStrips, testRounds, numPoison);
         }
-        System.out.println(String.format("sum  = %f , avg = %f", sum, sum / size));
+    }
+
+    class Next implements Solver {
+        public int[] testWine(int numBottles, int testStrips, int testRounds, int numPoison) {
+            return new PoisonedWineNext().testWine(numBottles, testStrips, testRounds, numPoison);
+        }
+    }
+
+    void execute() {
+        long size = 5000;
+        double sum1 = 0, sum2 = 0;
+        for (long seed = 1, end = seed + size; seed < end; ++seed) {
+            double s1 = new PoisonedWineVis().runTest(seed, new Current());
+            double s2 = new PoisonedWineVis().runTest(seed, new Next());
+            double max = Math.max(s1, s2);
+            sum1 += s1 / max;
+            sum2 += s2 / max;
+            System.out.println();
+        }
+        System.out.println(String.format("sum1 = %f , sum2 = %f", sum1, sum2));
+    }
+
+    public static void main(String[] args) {
+        new PoisonedWineVis().execute();
     }
 
     void addFatalError(String message) {

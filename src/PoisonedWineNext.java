@@ -1,7 +1,7 @@
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class PoisonedWine {
+public class PoisonedWineNext {
     private XorShift random = new XorShift();
     private int numBottles;
     private int testStrips;
@@ -24,7 +24,7 @@ public class PoisonedWine {
         for (int r = 0; r < testRounds && testStrips > 0; ++r) {
             List<Integer> bottles = remainBottles();
             int size = bottles.size();
-            int n = Math.max(Math.min((int) (size / numPoison / 2), size / testStrips), 1);
+            int n = Math.max(Math.min((int) (size / numPoison) * (r + 1) / testRounds, (int) (size / testStrips)), 1);
             // debug(r, size, n, testStrips);
             TestRound round = new TestRound();
             for (int s = 0; s < testStrips; ++s) {
@@ -68,12 +68,27 @@ public class PoisonedWine {
             if (executed) throw new RuntimeException();
             executed = true;
             int[] res = PoisonTest.useTestStrips(tests.stream().map(i -> i.query()).collect(Collectors.toList()).toArray(new String[0]));
+            int bad = 0;
             for (int i = 0; i < tests.size(); ++i) {
                 if (res[i] == 1) {
                     tests.get(i).inPoison = true;
                     --testStrips;
+                    ++bad;
                 } else {
                     for (Integer b : tests.get(i).bottles) {
+                        ok[b] = true;
+                    }
+                }
+            }
+            if (bad == numPoison) {
+                boolean ex[] = new boolean[numBottles];
+                for (Test test : tests) {
+                    for (Integer b : test.bottles) {
+                        ex[b] = true;
+                    }
+                }
+                for (int b = 0; b < numBottles; ++b) {
+                    if (ex[b] == false) {
                         ok[b] = true;
                     }
                 }
@@ -112,10 +127,6 @@ public class PoisonedWine {
             y = z;
             z = w;
             return w = (w ^ (w >>> 19)) ^ (t ^ (t >>> 8));
-        }
-
-        long nextLong() {
-            return ((long) nextInt() << 32) | (long) nextInt();
         }
     }
 
