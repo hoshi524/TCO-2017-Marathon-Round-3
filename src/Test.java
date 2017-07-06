@@ -2,88 +2,111 @@ import java.util.*;
 
 public class Test {
 
-    private XorShift random = new XorShift();
-
-    void solve() {
-        debug(0, remove(100, 2, 25, 0));
-        debug(1, remove(100, 2, 24, 1));
-        debug(2, remove(100, 2, 23, 2));
-        new AAA(100, 2).probability(25);
-        probability(100, 2, 2, 25);
+    public static final void main(String args[]) {
+        new Test().solve();
     }
 
-    class AAA {
-        boolean bottles[];
-        int poison;
+    void solve() {
+        {
+            long start = System.currentTimeMillis();
+            debug(calcWide(1000, 20, 20, 1));
+            debug("time", System.currentTimeMillis() - start);
+        }
+    }
 
-        AAA(int n, int p) {
-            poison = p;
-            bottles = new boolean[n];
-            List<Integer> remain = indexList();
-            for (int i = 0; i < p; ++i) {
-                bottles[remain.remove(random.nextInt(remain.size()))] = true;
+    class WidePair {
+        int wide;
+        double expected;
+
+        public String toString() {
+            return "wide = " + wide + " , expected = " + expected;
+        }
+    }
+
+    private static final int MAX_BOTTLES = 10000;
+    private static final int MAX_STRIPS = 20;
+    private static final int MAX_ROUNDS = 10;
+    private WidePair[][][] memo = new WidePair[MAX_BOTTLES + 1][MAX_STRIPS + 1][MAX_ROUNDS + 1];
+
+    WidePair calcWide(int bottles, int poison, int strips, int rounds) {
+        if (memo[bottles][strips][rounds] != null)
+            return memo[bottles][strips][rounds];
+        WidePair result = new WidePair();
+        if (rounds == 0 || strips == 0) return memo[bottles][strips][rounds] = result;
+        int min = 1;
+        int max = bottles / strips;
+        if (max < 1) max = 1;
+        if (max > 1000) max = 1000;
+        while (max - min >= 3) {
+            int d = (max - min) / 3;
+            int r = min + d;
+            int l = max - d;
+            if (expected(bottles, poison, strips, rounds, r) < expected(bottles, poison, strips, rounds, l)) {
+                min = r;
+            } else {
+                max = l;
             }
         }
-
-        List<Integer> indexList() {
-            List<Integer> x = new ArrayList<>();
-            for (int i = 0; i < bottles.length; ++i) {
-                x.add(i);
-            }
-            return x;
-        }
-
-        int test(int n) {
-            int x = 0;
-            List<Integer> remain = indexList();
-            for (int i = 0; i < n; ++i) {
-                if (bottles[remain.remove(random.nextInt(remain.size()))]) {
-                    ++x;
-                }
-            }
-            return x;
-        }
-
-        void probability(int wide) {
-            int testcase = 0xffffff;
-            int count[] = new int[poison + 1];
-            for (int i = 0; i < testcase; ++i) {
-                ++count[test(wide)];
-            }
-            for (int i = 0; i < count.length; ++i) {
-                debug(i, (double) count[i] / testcase);
+        for (int wide = min; wide <= max; ++wide) {
+            double e = expected(bottles, poison, strips, rounds, wide);
+            if (result.expected < e) {
+                result.expected = e;
+                result.wide = wide;
             }
         }
+        return memo[bottles][strips][rounds] = result;
+    }
+
+    double expected(int bottles, int poison, int strips, int rounds, int wide) {
+        double x = 0;
+        double[] probability = probability(bottles, poison, strips, wide);
+        for (int badStrips = 0; badStrips < probability.length; ++badStrips) {
+            if (probability[badStrips] < 1e-4) continue;
+            int remove = removeValue(bottles, poison, strips, wide, badStrips);
+            WidePair child = calcWide(bottles - remove, poison, strips - badStrips, rounds - 1);
+            x += probability[badStrips] * (remove + child.expected);
+        }
+        return x;
+    }
+
+    int removeValue(int bottles, int poison, int strips, int wide, int bad) {
+        int x = wide * (strips - bad);
+        if (poison == bad) {
+            x += bottles - wide * strips;
+        }
+        return x;
     }
 
     double[] probability(int bottles, int poison, int strips, int wide) {
-        double dp[][][] = new double[strips + 1][strips + 1][poison + 1];
+        int bad = Math.min(poison, wide);
+        double dp[][][] = new double[strips + 1][strips + 1][bad + 1];
         dp[0][0][0] = 1;
         for (int i = 0; i < strips; ++i) {
-            for (int j = 0; j < strips + 1; ++j) {
-                for (int k = 0; k < poison + 1; ++k) {
-                    if (dp[i][j][k] < 1e-5) continue;
-                    for (int m = k; m < poison + 1; ++m) {
-                        if (m == k) {
-                            dp[i + 1][j][m] += dp[i][j][k] * remove(bottles - i * wide, poison - k, wide, 0);
-                        } else {
-                            dp[i + 1][j + 1][m] += dp[i][j][k] * remove(bottles - i * wide, poison - k, wide - (m - k), m - k);
-                        }
+            for (int j = 0; j < strips; ++j) {
+                for (int k = 0; k < bad + 1; ++k) {
+                    if (dp[i][j][k] < 1e-4) continue;
+                    for (int m = k; m < bad + 1; ++m) {
+                        dp[i + 1][j + (m == k ? 0 : 1)][m] += dp[i][j][k] * remove(bottles - i * wide, poison - k, wide - (m - k), m - k);
                     }
                 }
             }
         }
         double[] sum = new double[strips + 1];
         for (int i = 0; i < strips + 1; ++i) {
-            for (int j = 0; j < poison + 1; ++j) {
+            for (int j = 0; j < bad + 1; ++j) {
                 sum[i] += dp[strips][i][j];
             }
-            debug(i, sum[i]);
         }
         return sum;
     }
 
+    private Map<Long, Double> removeMemo = new HashMap<>();
+
     double remove(int b, int p, int s, int f) {
+        if (p == 0) return 1;
+        long key = ((long) b << 26) | ((long) p << 18) | ((long) s << 8) | ((long) f);
+        Double t = removeMemo.get(key);
+        if (t != null) return t;
         if (s == 0) {
             double x = 1;
             for (int i = 0; i < f; ++i) {
@@ -100,39 +123,12 @@ public class Test {
             }
             return x;
         }
-        return ((double) (b - p) / b) * remove(b - 1, p, s - 1, f) + ((double) p / b) * remove(b - 1, p - 1, s, f - 1);
+        double x = ((double) (b - p) / b) * remove(b - 1, p, s - 1, f) + ((double) p / b) * remove(b - 1, p - 1, s, f - 1);
+        removeMemo.put(key, x);
+        return x;
     }
 
     void debug(Object... o) {
         System.out.println(Arrays.deepToString(o));
-    }
-
-    public static final void main(String args[]) {
-        new Test().solve();
-    }
-
-    private final class XorShift {
-        int x = 123456789;
-        int y = 362436069;
-        int z = 521288629;
-        int w = 88675123;
-
-        int nextInt(int n) {
-            final int t = x ^ (x << 11);
-            x = y;
-            y = z;
-            z = w;
-            w = (w ^ (w >>> 19)) ^ (t ^ (t >>> 8));
-            final int r = w % n;
-            return r < 0 ? r + n : r;
-        }
-
-        int nextInt() {
-            final int t = x ^ (x << 11);
-            x = y;
-            y = z;
-            z = w;
-            return w = (w ^ (w >>> 19)) ^ (t ^ (t >>> 8));
-        }
     }
 }
