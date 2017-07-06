@@ -9,7 +9,7 @@ public class Test {
     void solve() {
         {
             long start = System.currentTimeMillis();
-            debug(calcWide(1000, 20, 20, 1));
+            debug(calcWide(1000, 8, 20, 3));
             debug("time", System.currentTimeMillis() - start);
         }
     }
@@ -36,7 +36,7 @@ public class Test {
         int min = 1;
         int max = bottles / strips;
         if (max < 1) max = 1;
-        if (max > 1000) max = 1000;
+        if (max > 1000) max = 1500;
         while (max - min >= 3) {
             int d = (max - min) / 3;
             int r = min + d;
@@ -61,7 +61,7 @@ public class Test {
         double x = 0;
         double[] probability = probability(bottles, poison, strips, wide);
         for (int badStrips = 0; badStrips < probability.length; ++badStrips) {
-            if (probability[badStrips] < 1e-4) continue;
+            if (probability[badStrips] < 1e-5) continue;
             int remove = removeValue(bottles, poison, strips, wide, badStrips);
             WidePair child = calcWide(bottles - remove, poison, strips - badStrips, rounds - 1);
             x += probability[badStrips] * (remove + child.expected);
@@ -81,12 +81,18 @@ public class Test {
         int bad = Math.min(poison, wide);
         double dp[][][] = new double[strips + 1][strips + 1][bad + 1];
         dp[0][0][0] = 1;
+        double p[][] = new double[bad + 1][bad + 1];
         for (int i = 0; i < strips; ++i) {
+            for (int k = 0; k < bad + 1; ++k) {
+                for (int m = k; m < bad + 1; ++m) {
+                    p[k][m] = remove(bottles - i * wide, poison - k, wide - (m - k), m - k);
+                }
+            }
             for (int j = 0; j < strips; ++j) {
                 for (int k = 0; k < bad + 1; ++k) {
-                    if (dp[i][j][k] < 1e-4) continue;
+                    if (dp[i][j][k] < 1e-5) continue;
                     for (int m = k; m < bad + 1; ++m) {
-                        dp[i + 1][j + (m == k ? 0 : 1)][m] += dp[i][j][k] * remove(bottles - i * wide, poison - k, wide - (m - k), m - k);
+                        dp[i + 1][j + (m == k ? 0 : 1)][m] += dp[i][j][k] * p[k][m];
                     }
                 }
             }
@@ -107,23 +113,20 @@ public class Test {
         long key = ((long) b << 26) | ((long) p << 18) | ((long) s << 8) | ((long) f);
         Double t = removeMemo.get(key);
         if (t != null) return t;
+        double x = 1;
         if (s == 0) {
-            double x = 1;
             for (int i = 0; i < f; ++i) {
                 x *= p - i;
                 x /= b - i;
             }
-            return x;
-        }
-        if (f == 0) {
-            double x = 1;
+        } else if (f == 0) {
             for (int i = 0; i < s; ++i) {
                 x *= b - p - i;
                 x /= b - i;
             }
-            return x;
+        } else {
+            x = ((double) (b - p) / b) * remove(b - 1, p, s - 1, f) + ((double) p / b) * remove(b - 1, p - 1, s, f - 1);
         }
-        double x = ((double) (b - p) / b) * remove(b - 1, p, s - 1, f) + ((double) p / b) * remove(b - 1, p - 1, s, f - 1);
         removeMemo.put(key, x);
         return x;
     }
