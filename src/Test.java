@@ -36,7 +36,7 @@ public class Test {
         int min = 1;
         int max = bottles / strips;
         if (max < 1) max = 1;
-        if (max > 1000) max = 1500;
+        if (max > 1500) max = 1500;
         while (max - min >= 3) {
             int d = (max - min) / 3;
             int r = min + d;
@@ -78,20 +78,26 @@ public class Test {
     }
 
     double[] probability(int bottles, int poison, int strips, int wide) {
-        int bad = Math.min(poison, wide);
-        double dp[][][] = new double[strips + 1][strips + 1][bad + 1];
+        double dp[][][] = new double[strips + 1][strips + 1][poison + 1];
         dp[0][0][0] = 1;
-        double p[][] = new double[bad + 1][bad + 1];
+        double p[][] = new double[poison + 1][poison + 1];
         for (int i = 0; i < strips; ++i) {
-            for (int k = 0; k < bad + 1; ++k) {
-                for (int m = k; m < bad + 1; ++m) {
-                    p[k][m] = remove(bottles - i * wide, poison - k, wide - (m - k), m - k);
+            for (int k = 0; k < poison + 1; ++k) {
+                for (int m = k; m < poison + 1; ++m) {
+                    int t = poison - k;
+                    int s = wide - (m - k);
+                    int f = m - k;
+                    if (s < 0 || f < 0 || f > t) {
+                        p[k][m] = 0;
+                    } else {
+                        p[k][m] = remove(bottles - i * wide, t, s, f);
+                    }
                 }
             }
-            for (int j = 0; j < strips; ++j) {
-                for (int k = 0; k < bad + 1; ++k) {
+            for (int j = 0; j <= i; ++j) {
+                for (int k = 0; k < poison + 1; ++k) {
                     if (dp[i][j][k] < 1e-5) continue;
-                    for (int m = k; m < bad + 1; ++m) {
+                    for (int m = k; m < poison + 1; ++m) {
                         dp[i + 1][j + (m == k ? 0 : 1)][m] += dp[i][j][k] * p[k][m];
                     }
                 }
@@ -99,7 +105,7 @@ public class Test {
         }
         double[] sum = new double[strips + 1];
         for (int i = 0; i < strips + 1; ++i) {
-            for (int j = 0; j < bad + 1; ++j) {
+            for (int j = 0; j < poison + 1; ++j) {
                 sum[i] += dp[strips][i][j];
             }
         }
@@ -110,7 +116,7 @@ public class Test {
 
     double remove(int b, int p, int s, int f) {
         if (p == 0) return 1;
-        long key = ((long) b << 26) | ((long) p << 18) | ((long) s << 8) | ((long) f);
+        long key = ((long) b << 27) | ((long) p << 19) | ((long) s << 8) | ((long) f);
         Double t = removeMemo.get(key);
         if (t != null) return t;
         double x = 1;
