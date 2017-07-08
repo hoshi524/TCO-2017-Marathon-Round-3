@@ -3,50 +3,88 @@ import java.util.stream.Collectors;
 
 public class PoisonedWineNext {
     private XorShift random = new XorShift();
-    private int numBottles;
-    private int testStrips;
-    private int testRounds;
-    private int numPoison;
-    private boolean[] ok;
+    private int bottles;
+    private int strips;
+    private int rounds;
+    private int poison;
 
     public int[] testWine(int numBottles, int testStrips, int testRounds, int numPoison) {
         {// init
-            this.numBottles = numBottles;
-            this.testStrips = testStrips;
-            this.testRounds = testRounds;
-            this.numPoison = numPoison;
-            this.ok = new boolean[numBottles];
+            this.bottles = numBottles;
+            this.strips = testStrips;
+            this.rounds = testRounds;
+            this.poison = numPoison;
         }
         return solve();
     }
 
     int[] solve() {
-        for (int r = 0; r < testRounds && testStrips > 0; ++r) {
-            List<Integer> bottles = remainBottles();
-            int size = bottles.size();
-            int n = Math.max(Math.min((int) (size / numPoison) * (r + 1) / testRounds, (int) (size / testStrips)), 1);
-            // debug(r, size, n, testStrips);
+        List<TestRound> prevRounds = new ArrayList<>();
+        for (int r = 0; r < rounds && strips > 0; ++r) {
+            List<Integer> b = bottles(prevRounds, false);
+            int size = b.size();
+            int n = Math.max(Math.min((size / poison) * (r + 1) / rounds, (size / strips)), 1);
             TestRound round = new TestRound();
-            for (int s = 0; s < testStrips; ++s) {
+            for (int s = 0; s < strips; ++s) {
                 Test test = new Test();
                 for (int i = 0; i < n; ++i) {
-                    if (bottles.isEmpty()) break;
-                    int x = random.nextInt(bottles.size());
-                    test.bottles.add(bottles.get(x));
-                    bottles.remove(x);
+                    if (b.isEmpty()) break;
+                    test.bottles.add(b.remove(random.nextInt(b.size())));
                 }
                 if (test.bottles.size() > 0) round.tests.add(test);
             }
             round.execute();
+            prevRounds.add(round);
         }
-        return to(remainBottles());
+        return to(bottles(prevRounds, true));
     }
 
-    List<Integer> remainBottles() {
+    List<Integer> bottles(List<TestRound> rounds, boolean last) {
+        double prob[] = new double[bottles];
+        for (TestRound round : rounds) {
+            for (Test test : round.tests) {
+                if (test.inPoison) {
+                } else {
+                    for (Integer b : test.bottles) {
+                        prob[b] = -1;
+                    }
+                }
+            }
+        }
+        List<Integer> remain = new ArrayList<>();
+        for (int i = 0; i < bottles; ++i) {
+            if (prob[i] >= 0) remain.add(i);
+        }
+        if (last) return remain;
+        double average = (double) poison / remain.size();
+        for (Integer b : remain) {
+            prob[b] = average;
+        }
+        for (TestRound round : rounds) {
+            for (Test test : round.tests) {
+                if (test.inPoison) {
+                    for (int i = 0; i < test.bottles.size(); ++i) {
+                        if (prob[test.bottles.get(i)] < 0) {
+                            test.bottles.remove(i);
+                            --i;
+                        }
+                    }
+                    double p = 1.0 / test.bottles.size();
+                    if (average < p) {
+                        for (Integer b : test.bottles) {
+                            if (prob[b] < p) {
+                                prob[b] = p;
+                            }
+                        }
+                    }
+                } else {
+                }
+            }
+        }
         List<Integer> res = new ArrayList<>();
-        for (int i = 0; i < numBottles; ++i) {
-            if (ok[i] == false) {
-                res.add(i);
+        for (Integer b : remain) {
+            if (prob[b] > 0 && prob[b] < average * 1.2) {
+                res.add(b);
             }
         }
         return res;
@@ -62,35 +100,13 @@ public class PoisonedWineNext {
 
     class TestRound {
         List<Test> tests = new ArrayList<>();
-        private boolean executed = false;
 
         void execute() {
-            if (executed) throw new RuntimeException();
-            executed = true;
             int[] res = PoisonTest.useTestStrips(tests.stream().map(i -> i.query()).collect(Collectors.toList()).toArray(new String[0]));
-            int bad = 0;
             for (int i = 0; i < tests.size(); ++i) {
                 if (res[i] == 1) {
                     tests.get(i).inPoison = true;
-                    --testStrips;
-                    ++bad;
-                } else {
-                    for (Integer b : tests.get(i).bottles) {
-                        ok[b] = true;
-                    }
-                }
-            }
-            if (bad == numPoison) {
-                boolean ex[] = new boolean[numBottles];
-                for (Test test : tests) {
-                    for (Integer b : test.bottles) {
-                        ex[b] = true;
-                    }
-                }
-                for (int b = 0; b < numBottles; ++b) {
-                    if (ex[b] == false) {
-                        ok[b] = true;
-                    }
+                    --strips;
                 }
             }
         }
