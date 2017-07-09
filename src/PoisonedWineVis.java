@@ -1,4 +1,5 @@
 import java.security.*;
+import java.util.List;
 
 public class PoisonedWineVis {
 
@@ -71,39 +72,31 @@ public class PoisonedWineVis {
     }
 
     public double runTest(long seed) {
-        try {
-            generateTestCase(seed);
-            PoisonTest.vis = this;
-            int[] ret = new PoisonedWineNext().testWine(numBottles, testStrips, testRounds, numPoison);
-            if (failure) {
-                return 0;
-            }
-            for (int i = 0; i < ret.length; i++) {
-                if (ret[i] < 0 || ret[i] >= numBottles) {
-                    addFatalError("Invalid return value: " + ret[i]);
-                    return 0;
-                }
-                bottles[ret[i]] = false;
-            }
-            for (int i = 0; i < bottles.length; i++) {
-                if (bottles[i]) {
-                    addFatalError("A poisoned bottle remained.");
-                    return 0;
-                }
-            }
-            double pct = (double) (numBottles - ret.length) / (numBottles - numPoison);
-            double score = pct * pct;
-            System.out.println(String.format("seed = %4d , numBottles = %4d , testStrips = %2d , testRounds = %2d , numPoison = %3d , ret = %4d , Score = %f", seed, numBottles, testStrips_, testRounds_, numPoison, ret.length, score));
-            return score;
-        } catch (Exception e) {
-            System.err.println("An exception occurred while trying to get your program's results.");
-            e.printStackTrace();
+        generateTestCase(seed);
+        PoisonTest.vis = this;
+        int[] ret = new PoisonedWineNext().testWine(numBottles, testStrips, testRounds, numPoison);
+        if (failure) {
             return 0;
         }
+        for (int i = 0; i < ret.length; i++) {
+            if (ret[i] < 0 || ret[i] >= numBottles) {
+                throw new RuntimeException("Invalid return value: " + ret[i]);
+            }
+            bottles[ret[i]] = false;
+        }
+        for (int i = 0; i < bottles.length; i++) {
+            if (bottles[i]) {
+                throw new RuntimeException("A poisoned bottle remained. bottles = " + i);
+            }
+        }
+        double pct = (double) (numBottles - ret.length) / (numBottles - numPoison);
+        double score = pct * pct;
+        System.out.println(String.format("seed = %4d , numBottles = %4d , testStrips = %2d , testRounds = %2d , numPoison = %3d , ret = %4d , Score = %f", seed, numBottles, testStrips_, testRounds_, numPoison, ret.length, score));
+        return score;
     }
 
     void execute() {
-        long size = 5000;
+        long size = 10000;
         double sum = 0;
         for (long seed = 1, end = seed + size; seed < end; ++seed) {
             sum += new PoisonedWineVis().runTest(seed);

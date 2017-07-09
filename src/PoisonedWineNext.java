@@ -7,6 +7,7 @@ public class PoisonedWineNext {
     private int strips;
     private int rounds;
     private int poison;
+    private boolean[] safe;
 
     public int[] testWine(int numBottles, int testStrips, int testRounds, int numPoison) {
         {// init
@@ -14,16 +15,19 @@ public class PoisonedWineNext {
             this.strips = testStrips;
             this.rounds = testRounds;
             this.poison = numPoison;
+            this.safe = new boolean[numBottles];
         }
         return solve();
     }
 
     int[] solve() {
-        List<TestRound> prevRounds = new ArrayList<>();
+        List<Test> tests = new ArrayList<>();
         for (int r = 0; r < rounds && strips > 0; ++r) {
-            List<Integer> b = bottles(prevRounds, false);
+            State state = bottles(tests, false);
+            List<Integer> b = state.bottles;
             int size = b.size();
-            int n = Math.max(Math.min((size / poison) * (r + 1) / rounds, (size / strips)), 1);
+            int poison = state.poison;
+            int n = Math.max((int) Math.min(1. * size / poison * (r + 1) / rounds, 1. * size / strips), 1);
             TestRound round = new TestRound();
             for (int s = 0; s < strips; ++s) {
                 Test test = new Test();
@@ -31,63 +35,134 @@ public class PoisonedWineNext {
                     if (b.isEmpty()) break;
                     test.bottles.add(b.remove(random.nextInt(b.size())));
                 }
-                if (test.bottles.size() > 0) round.tests.add(test);
+                if (test.bottles.size() > 0) {
+                    Collections.sort(test.bottles);
+                    round.tests.add(test);
+                }
             }
             round.execute();
-            prevRounds.add(round);
+            tests.addAll(round.tests);
         }
-        return to(bottles(prevRounds, true));
+        return to(bottles(tests, true).bottles);
     }
 
-    List<Integer> bottles(List<TestRound> rounds, boolean last) {
-        double prob[] = new double[bottles];
-        for (TestRound round : rounds) {
-            for (Test test : round.tests) {
-                if (test.inPoison) {
-                } else {
-                    for (Integer b : test.bottles) {
-                        prob[b] = -1;
-                    }
+    class State {
+        List<Integer> bottles;
+        int poison;
+
+        State(List<Integer> bottles, int poison) {
+            this.bottles = bottles;
+            this.poison = poison;
+        }
+    }
+
+    State bottles(List<Test> tests, boolean last) {
+        for (int i = 0; i < tests.size(); ++i) {
+            Test t = tests.get(i);
+            if (!t.inPoison) {
+                for (Integer b : t.bottles) {
+                    safe[b] = true;
+                }
+                tests.remove(i);
+                --i;
+            }
+        }
+        for (int i = 0; i < tests.size(); ++i) {
+            Test t = tests.get(i);
+            for (int j = 0; j < t.bottles.size(); ++j) {
+                if (safe[t.bottles.get(j)]) {
+                    t.bottles.remove(j);
+                    --j;
+                }
+            }
+        }
+        for (int i = 0; i < tests.size(); ++i) {
+            Test t = tests.get(i);
+            for (int j = i + 1; j < tests.size(); ++j) {
+                if (t.equals(tests.get(j))) {
+                    tests.remove(j);
+                    --j;
                 }
             }
         }
         List<Integer> remain = new ArrayList<>();
         for (int i = 0; i < bottles; ++i) {
-            if (prob[i] >= 0) remain.add(i);
+            if (!safe[i]) remain.add(i);
         }
-        if (last) return remain;
-        double average = (double) poison / remain.size();
+        double prob[] = new double[bottles];
+        double average = (double) this.poison / remain.size();
         for (Integer b : remain) {
             prob[b] = average;
         }
-        for (TestRound round : rounds) {
-            for (Test test : round.tests) {
-                if (test.inPoison) {
-                    for (int i = 0; i < test.bottles.size(); ++i) {
-                        if (prob[test.bottles.get(i)] < 0) {
-                            test.bottles.remove(i);
-                            --i;
+        if (tests.size() > 0) {
+            class Node {
+                Test test;
+                List<Node> link = new ArrayList<>();
+            }
+            List<Node> exclusion = new ArrayList<>();
+            for (Test test : tests) {
+                Node n = new Node();
+                n.test = test;
+                exclusion.add(n);
+                double p = 1.0 / test.bottles.size();
+                if (average < p) {
+                    for (Integer b : test.bottles) {
+                        if (prob[b] < p) {
+                            prob[b] = p;
                         }
                     }
-                    double p = 1.0 / test.bottles.size();
-                    if (average < p) {
-                        for (Integer b : test.bottles) {
-                            if (prob[b] < p) {
-                                prob[b] = p;
+                }
+            }
+            if (exclusion.size() >= poison) {
+                for (int i = 0; i < exclusion.size(); ++i) {
+                    Node ni = exclusion.get(i);
+                    for (int j = i; j < exclusion.size(); ++j) {
+                        Node nj = exclusion.get(j);
+                        add:
+                        for (Integer bi : ni.test.bottles) {
+                            for (Integer bj : nj.test.bottles) {
+                                if (bi.equals(bj)) {
+                                    ni.link.add(nj);
+                                    nj.link.add(ni);
+                                    break add;
+                                }
                             }
                         }
                     }
-                } else {
                 }
+                boolean recursion = false;
+                for (int i = 0; i < 100; ++i) {
+                    List<Node> x = new ArrayList<>(exclusion);
+                    List<Test> select = new ArrayList<>();
+                    while (x.size() > 0 && select.size() < poison) {
+                        Node n = x.remove(random.nextInt(x.size()));
+                        select.add(n.test);
+                        x.removeAll(n.link);
+                    }
+                    if (select.size() == poison) {
+                        Set<Integer> set = new HashSet<>();
+                        for (Test t : select) {
+                            set.addAll(t.bottles);
+                        }
+                        for (Integer b : remain) {
+                            if (!set.contains(b) && safe[b] == false) {
+                                safe[b] = true;
+                                recursion = true;
+                            }
+                        }
+                    }
+                }
+                if (recursion) return bottles(tests, last);
             }
         }
+        if (last) return new State(remain, 0);
         List<Integer> res = new ArrayList<>();
         for (Integer b : remain) {
-            if (prob[b] > 0 && prob[b] < average * 1.2) {
+            if (prob[b] < average + 1e-5) {
                 res.add(b);
             }
         }
-        return res;
+        return new State(res, poison);
     }
 
     int[] to(List<Integer> list) {
@@ -119,9 +194,18 @@ public class PoisonedWineNext {
         String query() {
             return String.join(",", bottles.stream().map(i -> i.toString()).collect(Collectors.toList()).toArray(new String[0]));
         }
+
+        boolean equals(Test t) {
+            if (inPoison != t.inPoison) return false;
+            if (bottles.size() != t.bottles.size()) return false;
+            for (int i = 0; i < bottles.size(); ++i) {
+                if (!bottles.get(i).equals(t.bottles.get(i))) return false;
+            }
+            return true;
+        }
     }
 
-    private final class XorShift {
+    private class XorShift {
         int x = 123456789;
         int y = 362436069;
         int z = 521288629;
@@ -141,6 +225,7 @@ public class PoisonedWineNext {
             final int t = x ^ (x << 11);
             x = y;
             y = z;
+
             z = w;
             return w = (w ^ (w >>> 19)) ^ (t ^ (t >>> 8));
         }
