@@ -78,8 +78,8 @@ public class PoisonedWineNext {
         }
         for (int i = 0; i < tests.size(); ++i) {
             Test t = tests.get(i);
-            for (int j = i + 1; j < tests.size(); ++j) {
-                if (t.equals(tests.get(j))) {
+            for (int j = 0; j < tests.size(); ++j) {
+                if (tests.get(j).subset(t)) {
                     tests.remove(j);
                     --j;
                 }
@@ -195,13 +195,9 @@ public class PoisonedWineNext {
             return String.join(",", bottles.stream().map(i -> i.toString()).collect(Collectors.toList()).toArray(new String[0]));
         }
 
-        boolean equals(Test t) {
-            if (inPoison != t.inPoison) return false;
-            if (bottles.size() != t.bottles.size()) return false;
-            for (int i = 0; i < bottles.size(); ++i) {
-                if (!bottles.get(i).equals(t.bottles.get(i))) return false;
-            }
-            return true;
+        boolean subset(Test t) {
+            if (this == t) return false;
+            return bottles.containsAll(t.bottles);
         }
     }
 
