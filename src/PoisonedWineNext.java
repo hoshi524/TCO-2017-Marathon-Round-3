@@ -36,7 +36,6 @@ public class PoisonedWineNext {
                     test.bottles.add(b.remove(random.nextInt(b.size())));
                 }
                 if (test.bottles.size() > 0) {
-                    Collections.sort(test.bottles);
                     round.tests.add(test);
                 }
             }
@@ -118,14 +117,11 @@ public class PoisonedWineNext {
                     Node ni = exclusion.get(i);
                     for (int j = i; j < exclusion.size(); ++j) {
                         Node nj = exclusion.get(j);
-                        add:
-                        for (Integer bi : ni.test.bottles) {
-                            for (Integer bj : nj.test.bottles) {
-                                if (bi.equals(bj)) {
-                                    ni.link.add(nj);
-                                    nj.link.add(ni);
-                                    break add;
-                                }
+                        for (Integer bj : nj.test.bottles) {
+                            if (ni.test.bottles.contains(bj)) {
+                                ni.link.add(nj);
+                                nj.link.add(ni);
+                                break;
                             }
                         }
                     }

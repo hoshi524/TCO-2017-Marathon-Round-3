@@ -96,7 +96,7 @@ public class PoisonedWineVis {
     }
 
     void execute() {
-        long size = 10000;
+        long size = 20000;
         double sum = 0;
         for (long seed = 1, end = seed + size; seed < end; ++seed) {
             sum += new PoisonedWineVis().runTest(seed);

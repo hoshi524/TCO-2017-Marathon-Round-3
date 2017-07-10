@@ -3,7 +3,7 @@ import java.util.stream.Collectors;
 
 /**
  * on site : 176472.53
- * local   : 0.219960
+ * local   : 0.220396
  */
 public class PoisonedWine {
     private XorShift random = new XorShift();
