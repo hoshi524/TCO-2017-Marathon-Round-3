@@ -39,10 +39,18 @@ public class PoisonedWineNext {
                     round.tests.add(test);
                 }
             }
-            round.execute();
+            int bad = round.execute();
             tests.addAll(round.tests);
+            int s = getSafe();
+            debug("rounds", rounds - r, rounds, this.bottles, this.poison, (double) this.bottles / this.poison, "strips", this.strips, "bottles", size, this.bottles - s, "wide", n, "safe", s, (double) s / this.bottles, "bad", bad, round.tests.size());
         }
         return to(bottles(tests, true).bottles);
+    }
+
+    int getSafe() {
+        int x = 0;
+        for (int i = 0; i < bottles; ++i) if (safe[i]) ++x;
+        return x;
     }
 
     class State {
@@ -172,14 +180,17 @@ public class PoisonedWineNext {
     class TestRound {
         List<Test> tests = new ArrayList<>();
 
-        void execute() {
+        int execute() {
+            int bad = 0;
             int[] res = PoisonTest.useTestStrips(tests.stream().map(i -> i.query()).collect(Collectors.toList()).toArray(new String[0]));
             for (int i = 0; i < tests.size(); ++i) {
                 if (res[i] == 1) {
                     tests.get(i).inPoison = true;
-                    --strips;
+                    ++bad;
                 }
             }
+            strips -= bad;
+            return bad;
         }
     }
 
@@ -211,15 +222,6 @@ public class PoisonedWineNext {
             w = (w ^ (w >>> 19)) ^ (t ^ (t >>> 8));
             final int r = w % n;
             return r < 0 ? r + n : r;
-        }
-
-        int nextInt() {
-            final int t = x ^ (x << 11);
-            x = y;
-            y = z;
-
-            z = w;
-            return w = (w ^ (w >>> 19)) ^ (t ^ (t >>> 8));
         }
     }
 
