@@ -24,17 +24,26 @@ public class Test {
             }
         }
         XorShift random = new XorShift();
-        MySQL database = new MySQL();
+        // MySQL database = new MySQL();
         while (true) {
-            int poison = random.nextInt(20) + 1;
-            int bottles = random.nextInt(1000) + poison;
+            int poison = random.nextInt(15) + 5;
+            int bottles = random.nextInt(1000) + poison + 10;
             int strips = random.nextInt(20) + 1;
             int rounds = random.nextInt(10) + 1;
-            long start = System.currentTimeMillis();
-            Opt.QuerySize querySize = new Opt().solve(bottles, poison, strips, rounds);
-            long time = System.currentTimeMillis() - start;
-            debug("bottles", bottles, "poison", poison, "strips", strips, "rounds", rounds, querySize, "time", time);
-            database.insert(bottles, poison, strips, rounds, querySize.size, querySize.expect, (int) time);
+            {
+                long start = System.currentTimeMillis();
+                Opt.QuerySize querySize = new Opt().solve(bottles, poison, strips, rounds);
+                long time = System.currentTimeMillis() - start;
+                debug("bottles", bottles, "poison", poison, "strips", strips, "rounds", rounds, querySize, "time", time);
+                // database.insert(bottles, poison, strips, rounds, querySize.size, querySize.expect, (int) time);
+            }
+            {
+                long start = System.currentTimeMillis();
+                Opt2.QuerySize querySize = new Opt2().solve(bottles, poison, strips, rounds);
+                long time = System.currentTimeMillis() - start;
+                debug("bottles", bottles, "poison", poison, "strips", strips, "rounds", rounds, querySize, "time", time);
+                // database.insert(bottles, poison, strips, rounds, querySize.size, querySize.expect, (int) time);
+            }
         }
     }
 
@@ -162,9 +171,122 @@ public class Test {
             removeMemo.put(key, x);
             return x;
         }
+    }
 
-        private void debug(Object... o) {
-            System.out.println(Arrays.deepToString(o));
+    class Opt2 {
+        class QuerySize {
+            int size;
+            double expect;
+
+            public String toString() {
+                return String.format("size = %d, expect = %f", size, expect);
+            }
+        }
+
+        private static final int MAX_BOTTLES = 10000;
+        private static final int MAX_STRIPS = 20;
+        private static final int MAX_ROUNDS = 10;
+        private QuerySize[][][] memo;
+        private XorShift random = new XorShift();
+
+        QuerySize solve(int bottles, int poison, int strips, int rounds) {
+            memo = new QuerySize[MAX_BOTTLES + 1][MAX_STRIPS + 1][MAX_ROUNDS + 1];
+            return solve(bottles, bottles, poison, strips, rounds);
+        }
+
+        private QuerySize solve(int bottles, int remain, int poison, int strips, int rounds) {
+            if (memo[remain][strips][rounds] != null)
+                return memo[remain][strips][rounds];
+            QuerySize result = new QuerySize();
+            if (remain == poison || rounds == 0 || strips == 0) {
+                double expect = (double) (bottles - remain) / (bottles - poison);
+                result.expect = expect * expect;
+                return memo[remain][strips][rounds] = result;
+            }
+            int min = 1;
+            int max = remain / strips;
+            if (max < 1) max = 1;
+            if (max > 1500) max = 1500;
+            while (max - min >= 3) {
+                int d = (max - min) / 3;
+                int r = min + d;
+                int l = max - d;
+                if (expect(bottles, remain, poison, strips, rounds, r) < expect(bottles, remain, poison, strips, rounds, l)) {
+                    min = r;
+                } else {
+                    max = l;
+                }
+                // debug(max, min);
+            }
+            for (int size = min; size <= max; ++size) {
+                double e = expect(bottles, remain, poison, strips, rounds, size);
+                if (result.expect < e) {
+                    result.expect = e;
+                    result.size = size;
+                }
+            }
+            return memo[remain][strips][rounds] = result;
+        }
+
+        double expect(int bottles, int remain, int poison, int strips, int rounds, int size) {
+            double expect = 0;
+            double[] probability = probability(remain, poison, Math.min(remain, strips), size);
+            for (int badStrips = 0; badStrips < probability.length; ++badStrips) {
+                if (probability[badStrips] < 1e-4 || Double.isNaN(probability[badStrips])) continue;
+                int remove = size * (strips - badStrips) + (poison == badStrips ? remain - size * strips : 0);
+                expect += probability[badStrips] * solve(bottles, remain - remove, poison, strips - badStrips, rounds - 1).expect;
+            }
+            return expect;
+        }
+
+        double[] probability(int bottles, int poison, int strips, int size) {
+            double result[] = new double[strips + 1];
+            final int n = 2000;
+            final int m = Math.min(bottles, strips);
+            final int k = m * size;
+            int remain[] = new int[bottles];
+            boolean use[] = new boolean[strips];
+            for (int i = 0; i < bottles; ++i) remain[i] = i;
+            for (int i = 0; i < n; ++i) {
+                Arrays.fill(use, true);
+                int c = 0;
+                for (int p = 0; p < poison; ++p) {
+                    int r = random.nextInt(bottles - p);
+                    int b = remain[r];
+                    {
+                        int t = remain[bottles - p - 1];
+                        remain[bottles - p - 1] = b;
+                        remain[r] = t;
+                    }
+                    int t = b % m;
+                    if (b < k && use[t]) {
+                        use[t] = false;
+                        ++c;
+                    }
+                }
+                ++result[c];
+            }
+            for (int i = 0; i <= strips; ++i) {
+                result[i] /= n;
+            }
+            return result;
+        }
+
+        private class XorShift {
+            int x = 123456789;
+            int y = 362436069;
+            int z = 521288629;
+            int w = 88675123;
+
+            int nextInt(int n) {
+                final int t = x ^ (x << 11);
+                x = y;
+                y = z;
+                z = w;
+                w = (w ^ (w >>> 19)) ^ (t ^ (t >>> 8));
+                final int r = w % n;
+                return r < 0 ? r + n : r;
+            }
         }
     }
 
