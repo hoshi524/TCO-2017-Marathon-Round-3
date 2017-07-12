@@ -11,7 +11,7 @@ public class Test {
             int x = 123456789;
             int y = 362436069;
             int z = 521288629;
-            int w = 88675123;
+            int w = (int) System.currentTimeMillis();
 
             int nextInt(int n) {
                 final int t = x ^ (x << 11);
@@ -22,24 +22,19 @@ public class Test {
                 final int r = w % n;
                 return r < 0 ? r + n : r;
             }
-
-            int nextInt() {
-                final int t = x ^ (x << 11);
-                x = y;
-                y = z;
-
-                z = w;
-                return w = (w ^ (w >>> 19)) ^ (t ^ (t >>> 8));
-            }
         }
         XorShift random = new XorShift();
+        MySQL database = new MySQL();
         while (true) {
-            int bottles = random.nextInt(1000) + 100;
-            int poison = random.nextInt(bottles / 50) + 1;
-            int strips = random.nextInt(6) + 2;
-            int rounds = random.nextInt(5) + 1;
+            int poison = random.nextInt(20) + 1;
+            int bottles = random.nextInt(1000) + poison;
+            int strips = random.nextInt(20) + 1;
+            int rounds = random.nextInt(10) + 1;
             long start = System.currentTimeMillis();
-            debug("bottles", bottles, "poison", poison, "strips", strips, "rounds", rounds, new Opt().solve(bottles, poison, strips, rounds), "time", System.currentTimeMillis() - start);
+            Opt.QuerySize querySize = new Opt().solve(bottles, poison, strips, rounds);
+            long time = System.currentTimeMillis() - start;
+            debug("bottles", bottles, "poison", poison, "strips", strips, "rounds", rounds, querySize, "time", time);
+            database.insert(bottles, poison, strips, rounds, querySize.size, querySize.expect, (int) time);
         }
     }
 
@@ -56,9 +51,10 @@ public class Test {
         private static final int MAX_BOTTLES = 10000;
         private static final int MAX_STRIPS = 20;
         private static final int MAX_ROUNDS = 10;
-        private QuerySize[][][] memo = new QuerySize[MAX_BOTTLES + 1][MAX_STRIPS + 1][MAX_ROUNDS + 1];
+        private QuerySize[][][] memo;
 
         QuerySize solve(int bottles, int poison, int strips, int rounds) {
+            memo = new QuerySize[MAX_BOTTLES + 1][MAX_STRIPS + 1][MAX_ROUNDS + 1];
             return solve(bottles, bottles, poison, strips, rounds);
         }
 
