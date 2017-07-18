@@ -1,4 +1,5 @@
 import java.security.*;
+import java.util.Arrays;
 import java.util.List;
 
 public class PoisonedWineVis {
@@ -15,10 +16,10 @@ public class PoisonedWineVis {
             SecureRandom r = SecureRandom.getInstance("SHA1PRNG");
             r.setSeed(seed);
             numBottles = r.nextInt(9951) + 50;
-            bottles = new boolean[numBottles];
             testStrips = testStrips_ = r.nextInt(16) + 5;
             testRounds = testRounds_ = r.nextInt(10) + 1;
             numPoison = r.nextInt(numBottles / 50) + 1;
+            bottles = new boolean[numBottles];
             int remain = numPoison;
             while (remain > 0) {
                 int x = r.nextInt(numBottles);
@@ -33,12 +34,12 @@ public class PoisonedWineVis {
 
     public int[] useTestStrips(String[] tests) {
         if (tests.length > testStrips) {
-            addFatalError("testWine() called with " + tests.length + " tests when only " + testStrips + " strips remain");
+            debug("testWine() called with " + tests.length + " tests when only " + testStrips + " strips remain");
             failure = true;
             return new int[0];
         }
         if (testRounds <= 0) {
-            addFatalError("testWine() called too many times");
+            debug("testWine() called too many times");
             failure = true;
             return new int[0];
         }
@@ -51,12 +52,12 @@ public class PoisonedWineVis {
                 try {
                     x = Integer.parseInt(s[j]);
                 } catch (Exception e) {
-                    addFatalError("Invalid value " + s[j] + " found in a test request");
+                    debug("Invalid value " + s[j] + " found in a test request");
                     failure = true;
                     return new int[0];
                 }
                 if (x < 0 || x >= numBottles) {
-                    addFatalError("Invalid value " + x + " found in a test request");
+                    debug("Invalid value " + x + " found in a test request");
                     failure = true;
                     return new int[0];
                 }
@@ -91,24 +92,51 @@ public class PoisonedWineVis {
         }
         double pct = (double) (numBottles - ret.length) / (numBottles - numPoison);
         double score = pct * pct;
-        System.out.println(String.format("seed = %4d , numBottles = %4d , testStrips = %2d , testRounds = %2d , numPoison = %3d , ret = %4d , Score = %f", seed, numBottles, testStrips_, testRounds_, numPoison, ret.length, score));
+        debug(String.format("seed = %4d , numBottles = %4d , testStrips = %2d , testRounds = %2d , numPoison = %3d , ret = %4d , Score = %f", seed, numBottles, testStrips_, testRounds_, numPoison, ret.length, score));
+        return score;
+    }
+
+    public double runTest_(long seed) {
+        generateTestCase(seed);
+        PoisonTest.vis = this;
+        int[] ret = new PoisonedWine().testWine(numBottles, testStrips, testRounds, numPoison);
+        if (failure) {
+            return 0;
+        }
+        for (int i = 0; i < ret.length; i++) {
+            if (ret[i] < 0 || ret[i] >= numBottles) {
+                throw new RuntimeException("Invalid return value: " + ret[i]);
+            }
+            bottles[ret[i]] = false;
+        }
+        for (int i = 0; i < bottles.length; i++) {
+            if (bottles[i]) {
+                throw new RuntimeException("A poisoned bottle remained. bottles = " + i);
+            }
+        }
+        double pct = (double) (numBottles - ret.length) / (numBottles - numPoison);
+        double score = pct * pct;
+        debug(String.format("seed = %4d , numBottles = %4d , testStrips = %2d , testRounds = %2d , numPoison = %3d , ret = %4d , Score = %f", seed, numBottles, testStrips_, testRounds_, numPoison, ret.length, score));
         return score;
     }
 
     void execute() {
         long size = 20000;
-        double sum = 0;
+        double s1 = 0, s2 = 0;
         for (long seed = 1, end = seed + size; seed < end; ++seed) {
-            sum += new PoisonedWineVis().runTest(seed);
+            s1 += new PoisonedWineVis().runTest(seed);
+            s2 += new PoisonedWineVis().runTest_(seed);
+            long n = seed - end + size + 1;
+            debug(s1 / n, s2 / n);
         }
-        System.out.println(String.format("average = %f", sum / size));
+        debug(String.format("average = %f", s1 / size));
     }
 
     public static void main(String[] args) {
         new PoisonedWineVis().execute();
     }
 
-    void addFatalError(String message) {
-        System.out.println(message);
+    void debug(Object... o) {
+        System.out.println(Arrays.deepToString(o));
     }
 }

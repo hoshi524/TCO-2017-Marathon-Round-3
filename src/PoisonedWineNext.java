@@ -41,8 +41,8 @@ public class PoisonedWineNext {
             }
             int bad = round.execute();
             tests.addAll(round.tests);
-            int s = getSafe();
-            debug("rounds", rounds - r, rounds, this.bottles, this.poison, (double) this.bottles / this.poison, "strips", this.strips, "bottles", size, this.bottles - s, "wide", n, "safe", s, (double) s / this.bottles, "bad", bad, round.tests.size());
+            // int s = getSafe();
+            // debug("rounds", rounds - r, rounds, this.bottles, this.poison, (double) this.bottles / this.poison, "strips", this.strips, "bottles", size, this.bottles - s, "wide", n, "safe", s, (double) s / this.bottles, "bad", bad, round.tests.size());
         }
         return to(bottles(tests, true).bottles);
     }
