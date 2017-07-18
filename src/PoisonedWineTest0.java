@@ -29,10 +29,10 @@ public class PoisonedWineTest0 {
             int size = b.size();
             int poison = state.poison;
             int n;
-            if (rounds - r < 3) {
+            if (rounds - r < 2) {
                 n = optimize.solve(size, poison, strips, rounds - r).size;
             } else {
-                n = Math.max((int) Math.min(1. * size / poison * (r + 1) / rounds, 1. * size / strips), 1);
+                n = Math.max((int) Math.min(1. * size / this.poison * (r + 1) / rounds, 1. * size / strips), 1);
             }
             TestRound round = new TestRound();
             for (int s = 0; s < strips; ++s) {
@@ -47,8 +47,8 @@ public class PoisonedWineTest0 {
             }
             int bad = round.execute();
             tests.addAll(round.tests);
-            int s = getSafe();
-            debug("rounds", rounds - r, rounds, this.bottles, this.poison, (double) this.bottles / this.poison, "strips", this.strips, "bottles", size, this.bottles - s, "wide", n, "safe", s, (double) s / this.bottles, "bad", bad, round.tests.size());
+            // int s = getSafe();
+            // debug("rounds", rounds - r, rounds, this.bottles, this.poison, (double) this.bottles / this.poison, "strips", this.strips, "bottles", size, this.bottles - s, "wide", n, "safe", s, (double) s / this.bottles, "bad", bad, round.tests.size());
         }
         return to(bottles(tests, true).bottles);
     }

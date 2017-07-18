@@ -85,7 +85,7 @@ public class PoisonedWineVis {
     public double runTest(long seed) {
         generateTestCase(seed);
         PoisonTest.vis = this;
-        int[] ret = new PoisonedWineNext().testWine(numBottles, testStrips, testRounds, numPoison);
+        int[] ret = new PoisonedWine().testWine(numBottles, testStrips, testRounds, numPoison);
         if (failure) {
             return 0;
         }
