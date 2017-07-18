@@ -34,10 +34,6 @@ public class PoisonedWineTest0 {
             } else {
                 n = Math.max((int) Math.min(1. * size / poison * (r + 1) / rounds, 1. * size / strips), 1);
             }
-            if (n == 0) {
-                debug(size, poison, strips, rounds - r, n);
-                throw new RuntimeException();
-            }
             TestRound round = new TestRound();
             for (int s = 0; s < strips; ++s) {
                 Test test = new Test();

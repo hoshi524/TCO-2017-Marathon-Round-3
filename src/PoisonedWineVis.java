@@ -15,10 +15,12 @@ public class PoisonedWineVis {
         try {
             SecureRandom r = SecureRandom.getInstance("SHA1PRNG");
             r.setSeed(seed);
+
             numBottles = r.nextInt(9951) + 50;
             testStrips = testStrips_ = r.nextInt(16) + 5;
             testRounds = testRounds_ = r.nextInt(10) + 1;
             numPoison = r.nextInt(numBottles / 50) + 1;
+
             bottles = new boolean[numBottles];
             int remain = numPoison;
             while (remain > 0) {
@@ -30,6 +32,14 @@ public class PoisonedWineVis {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public int getPoison(List<Integer> list) {
+        int x = 0;
+        for (Integer b : list) {
+            if (bottles[b]) ++x;
+        }
+        return x;
     }
 
     public int[] useTestStrips(String[] tests) {
@@ -99,7 +109,7 @@ public class PoisonedWineVis {
     public double runTest_(long seed) {
         generateTestCase(seed);
         PoisonTest.vis = this;
-        int[] ret = new PoisonedWine().testWine(numBottles, testStrips, testRounds, numPoison);
+        int[] ret = new PoisonedWineTest0().testWine(numBottles, testStrips, testRounds, numPoison);
         if (failure) {
             return 0;
         }
